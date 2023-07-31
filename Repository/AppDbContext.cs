@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 namespace Repository
@@ -26,9 +27,8 @@ namespace Repository
         //}
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
             base.OnModelCreating(modelBuilder);
-            modelBuilder.Entity<Book>().HasOne(b => b.Category).WithMany(q => q.Books).HasForeignKey(a => a.CategoryId);
-            modelBuilder.Entity<BookReader>().HasMany(w => w.ReadedBooks).WithMany(a => a.Readers).UsingEntity(z => z.ToTable("ReadersBooks"));
         }
     }
 }

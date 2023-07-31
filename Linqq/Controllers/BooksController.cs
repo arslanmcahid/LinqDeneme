@@ -1,76 +1,93 @@
 ﻿using AutoMapper;
 using Core.DTOs;
 using Core.Models;
-using Core.Repositories;
 using Core.Services;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 namespace Linqq.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class BooksController : ControllerBase
+    public class BooksController : CustomBaseController
     {
-        private readonly BookService _bookService;
         private readonly IMapper _mapper;
-        public BooksController(BookService bookService, IMapper mapper)
+        private readonly IService<Book> _service;
+        private readonly IBookService _bookService;
+        public BooksController(IMapper mapper, IService<Book> service, IBookService bookService)
         {
-            _bookService = bookService;
             _mapper = mapper;
+            _service = service;
+            _bookService = bookService;
         }
         [HttpGet]
-        public IActionResult GetAllBooks()
+        public async Task<IActionResult> GetAllBooks()
         {
-            var books = _bookService.GetAllBooks();
-            var bookDtos = _mapper.Map<List<BookDto>>(books);
-            return Ok(bookDtos);
+            var books = await _service.GetAllAsync();
+            var booksDto = _mapper.Map<List<BookDto>>(books.ToList());
+            return CreateActionResult(CustomResponseDto<List<BookDto>>.Success(204, booksDto));
         }
 
         [HttpGet("{id}")]
-        public IActionResult GetBookById(int id)
+        public async Task<IActionResult> GetById(int id)
         {
-            var book = _bookService.GetBookById(id);
-            if (book == null)
-            {
-                return NotFound();
-            }
+            var book = await _bookService.GetByIdAsync(id);
             var bookDto = _mapper.Map<BookDto>(book);
-            return Ok(bookDto);
+            return CreateActionResult(CustomResponseDto<BookDto>.Success(200, bookDto));
         }
-
         [HttpPost]
-        public IActionResult AddBook(BookDto bookDto)
+        public async Task<IActionResult> Add(BookDto bookDto)
         {
-            var book = _mapper.Map<Book>(bookDto);
-            _bookService.AddBook(book);
-            return CreatedAtAction(nameof(GetBookById), new {id = book.Id},bookDto);
+            var book = await _service.AddAsync(_mapper.Map<Book>(bookDto));
+            var booksDto = _mapper.Map<BookDto>(book);
+            return CreateActionResult(CustomResponseDto<BookDto>.Success(200, booksDto));
         }
-
-        [HttpPut("{id}")]
-        public IActionResult UpdateBook(int id, BookDto bookDto)
+        [HttpPut]
+        public async Task<IActionResult> UpdateBook(BookDto bookDto)
         {
-            var existingBook = _bookService.GetBookById(id);
-            if (existingBook == null)
-            {
-                return NotFound();
-            }
-
-            var book = _mapper.Map<Book>(bookDto);
-            book.Id = id;
-            _bookService.UpdateBook(book);
-            return NoContent();
+            await _service.UpdateAsync(_mapper.Map<Book>(bookDto));
+            return CreateActionResult(CustomResponseDto<NoContentDto>.Success(200));
         }
-
         [HttpDelete("{id}")]
-        public IActionResult DeleteBook(int id)
+        public async Task<IActionResult> RemoveBook(int id)
         {
-            var book = _bookService.GetBookById(id);
-            if (book == null)
-            {
-                return NotFound();
-            }
-            _bookService.DeleteBook(book);
-            return NoContent();
+            var book = await _service.GetByIdAsync(id);
+            await _service.RemoveAsync(book);
+            return CreateActionResult(CustomResponseDto<NoContentDto>.Success(204));
         }
+
+
+        #region Yazara gore gruplama
+        [HttpGet("GroupByAuthor/")]
+        public async Task<IActionResult> GroupByAuthor()
+        {
+            var book = await _bookService.GroupedBookForAuthor();
+            var bookDto = _mapper.Map<BookDto>(book);
+            return CreateActionResult(CustomResponseDto<BookDto>.Success(200, bookDto));
+            //var book = _service.GetAllAsync();
+            //var booka = _bookService.GetAllBooks().GroupBy(x=>x.Author).Where(group => group.Count() > 1).SelectMany(group => group);
+            //var bookDto = _mapper.Map<List<BookDto>>(book);
+            //return Ok(bookDto);
+        }
+        #endregion
+        #region Kategorisi 5 olan kitaplar
+        [HttpGet("categoryof/{id}")]
+        public async Task<IActionResult> GetByBooksofCategory(int categoryId)
+        {
+            var books = await _bookService.FilteredBooksForCategory(categoryId);
+            var booksDto = _mapper.Map<BookDto>(books);
+            return CreateActionResult(CustomResponseDto<BookDto>.Success(200, booksDto));
+            //var books = _bookService.GetAllBooks().Where(x=>x.CategoryId == 5);
+            //var booksDto = _mapper.Map<List<BookDto>>(books);
+            //return Ok(booksDto);
+        }
+        #endregion
+        #region title and categoryname listeleme
+        [HttpGet("ListforTitleAndCategory")]
+        public async Task<IActionResult> GetListForTitleAndCategory()
+        {
+            var books = await _bookService.GetBookWithCategoryAndTitle();
+            var booksDto = _mapper.Map<BookDto>(books);
+            return CreateActionResult(CustomResponseDto<BookDto>.Success(200, booksDto));
+        }
+        #endregion  
     }
 }
